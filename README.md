@@ -38,6 +38,6 @@ This repository contains:
 4) makefile - a makefie to compile everything.
 
 To run the code:
-I)   Clone repository into a directory.
-II)  Then run "make".
-III) Run "./troots"
+1)   Clone repository into a directory.
+2)  Then run "make".
+3) Run "./troots"
