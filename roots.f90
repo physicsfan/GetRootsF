@@ -1,4 +1,5 @@
 MODULE roots
+  USE iso_fortran_env, only: real32
   ! This module contains methods for finding roots of linear and non-
   ! linear equations.
   ! Methods:
@@ -12,13 +13,13 @@ MODULE roots
   !          hybridSA - uses either the accelerated Secant or Bisection method
   !                     to find a root.
   IMPLICIT NONE
-
+  
   PRIVATE
-
+  
   PUBLIC :: root_searchD, hybridD          ! routines if the derivative is available
   PUBLIC :: root_search, hybridSA          ! routines if the derivative is unavailable
-
   
+    
 CONTAINS
 
   
@@ -29,29 +30,34 @@ CONTAINS
     ! maximum number of iterations is also optional. If none is supplied, 30 iterations
     ! are allowed.
     IMPLICIT NONE
-
+    
     ! arguments and interfaces
-    REAL(8), INTENT(inout) :: lbound, rbound
-    REAL(8), INTENT(in) :: tol
+    REAL(real32), INTENT(inout) :: lbound, rbound
+    REAL(real32), INTENT(in) :: tol
+    
     INTERFACE
        PURE FUNCTION f(x) RESULT(answer)
-         REAL(8), INTENT(in) :: x
-         REAL(8) :: answer
+         IMPORT
+         REAL(real32), INTENT(in) :: x
+         REAL(real32) :: answer
        END FUNCTION f
        
        PURE FUNCTION df(x) RESULT(answer)
-         REAL(8), INTENT(in) :: x
-         REAL(8) :: answer
+         IMPORT
+         REAL(real32), INTENT(in) :: x
+         REAL(real32) :: answer
        END FUNCTION df
     END INTERFACE
+    
     ! optional arguments
     INTEGER, INTENT(in), OPTIONAL :: max_iters
-    REAL(8), INTENT(in), OPTIONAL :: step
+    REAL(real32), INTENT(in), OPTIONAL :: step
+    
     ! locals
     INTEGER :: i, iters, max_iterations, root_number, total_steps
-    REAL(8) :: lbrac, rbrac, root, step_size
+    REAL(real32) :: lbrac, rbrac, root, step_size
     LOGICAL :: root_present = .FALSE.
-
+    
     ! begin
     max_iterations = 30; step_size = 0.1d0
     root_number = 0
@@ -59,22 +65,30 @@ CONTAINS
     ! Check for optional arguments
     IF(PRESENT(max_iters)) max_iterations = max_iters
     IF(PRESENT(step)) step_size = step
-
+    
     ! Perform exhaustive search
     ! ensure steps are not too small
     IF(step_size <= tol) GOTO 100
+    
     total_steps = INT((rbound-lbound)/step_size)
+    
     PRINT *, 'Total steps:', total_steps
+    
     DO i = 1, total_steps-1
+       
        ! Select search interval for root i
        lbrac = lbound+step_size*i
        rbrac = lbound+step_size*(i+1)
+       
        ! Verify that the root is bracketed
        IF (f(lbrac)*f(rbrac) < 0.d0) THEN
+          
           root_present = .TRUE.
           root_number = root_number + 1
+          
           ! Find the root within interval
           CALL hybridD(lbrac, rbrac, root, tol, iters, max_iters, f, df)
+          
           ! Print results
           IF (iters .GE. max_iters) THEN
              PRINT '(a)', "Maximum iterations reached."
@@ -84,14 +98,16 @@ CONTAINS
              PRINT '(a,i3,a,f11.8,a,i3,a)', 'Root', root_number, ' found at x =', root, &
                   ' in', iters,' iterations.'
           END IF
+          
        END IF
-    END DO
        
+    END DO
+    
     IF (root_present .EQV. .FALSE.) GOTO 200
-
+    
     ! normal exit
     RETURN
-
+    
     ! error trap
 100 PRINT '(a,f11.8,a)', 'The specified step-size dx =', step_size, ' is too small.'
     RETURN
@@ -99,7 +115,7 @@ CONTAINS
     RETURN
     
   END SUBROUTINE root_searchD
-
+  
   
   SUBROUTINE hybridD(lbound, rbound, root, tolerance, iterations, max_iterations, &
        f, df)
@@ -108,33 +124,30 @@ CONTAINS
     ! and "rbound", and the result is returned in "root". If the next NR guess
     ! is within the known bounds, the step is accepted; otherwise, a bisection
     ! step is taken.
-    !
-    ! The root is initially bracketed between X0 and X1:
-    !
-    !    x :        X0          Xmid           X1
-    !  f(x):        fX0         fXmid          fX1
-    ! f'(x):          ---       DerfXmid            ---
-    !
-    ! To Do: All errors should be handled by Error Handler
+    IMPLICIT NONE
+    
     ! arguments and interfaces
-    REAL(8), INTENT(inout) :: lbound, rbound, root
-    real(8), intent(in) :: tolerance
-    integer, intent(out) :: iterations
+    REAL(real32), INTENT(inout) :: lbound, rbound, root
+    REAL(real32), INTENT(in) :: tolerance
+    INTEGER, INTENT(out) :: iterations
     integer, intent(in) :: max_iterations
-    interface
-       pure function f(x) result(answer)
-         real(8), intent(in) :: x
-         real(8) :: answer
+
+    INTERFACE
+       PURE FUNCTION f(x) RESULT(answer)
+         IMPORT
+         real(real32), intent(in) :: x
+         real(real32) :: answer
        end function f
        
-       pure function df(x) result(answer)
-         real(8), intent(in) :: x
-         real(8) :: answer
+       PURE FUNCTION df(x) RESULT(answer)
+         IMPORT
+         real(real32), intent(in) :: x
+         real(real32) :: answer
        end function df
     end interface
     
     ! locals
-    REAL(8) :: delta, dfxmid, error, fxmid, fx0, fx1, x0, x1, xmid
+    REAL(real32) :: delta, dfxmid, error, fxmid, fx0, fx1, x0, x1, xmid
     character(len=6) :: type
     
     ! Verify that the root is bracketed
@@ -171,7 +184,7 @@ CONTAINS
        end if
        
        ! Compare the relative error ti the Tolerance.
-       if (abs(delta/xmid) .le. tolerance) then
+       IF (ABS(delta/xmid) .LE. tolerance) THEN
           ! Error is BELOW tolerance, the root has been found,
           ! so exit loop.
           exit
@@ -189,8 +202,11 @@ CONTAINS
              x0 = xmid
              fx0 = fxmid
           end if
-       end if
-       print '(a,i2,a8,a10,f12.8)', 'Iteration:', iterations, type, 'Root: ', xmid
+
+       END IF
+
+       PRINT '(a,i2,a8,a10,f12.8)', 'Iteration:', iterations, TYPE, 'Root: ', xmid
+
     END DO
 
     ! normal exit
@@ -209,21 +225,27 @@ CONTAINS
     ! derivative is used.  The step-size for the search is an optional user input.  If
     ! none is supplied, 0.1 is used. The maximum number of iterations is also optional.
     ! If none is supplied, 30 is used.
+
     IMPLICIT NONE
+
     ! arguments and interfaces
-    REAL(8), INTENT(in) :: lbound, rbound, tol
+    REAL(real32), INTENT(in) :: lbound, rbound, tol
+
     INTERFACE
        PURE FUNCTION f(x) RESULT(answer)
-         REAL(8), INTENT(in) :: x
-         REAL(8) :: answer
+         import
+         REAL(real32), INTENT(in) :: x
+         REAL(real32) :: answer
        END FUNCTION f
     END INTERFACE
+
     ! optional arguments
     INTEGER, INTENT(in), OPTIONAL :: max_iterations
-    REAL(8), INTENT(in), OPTIONAL :: step
+    REAL(real32), INTENT(in), OPTIONAL :: step
+
     ! locals
     INTEGER :: i, iters, max_iters, root_number, total_steps
-    REAL(8) :: lbrac, rbrac, root, step_size
+    REAL(real32) :: lbrac, rbrac, root, step_size
     LOGICAL :: root_present = .FALSE.
 
     ! begin
@@ -237,19 +259,26 @@ CONTAINS
     ! Perform exhaustive search
     ! ensure steps are not too small
     IF(step_size <= tol) GOTO 100
+
     total_steps = INT((rbound-lbound)/step_size)
+
     PRINT *, 'Total steps:', total_steps
 
     DO i = 1, total_steps-1
+
        ! Select search interval for root i
        lbrac = lbound+step_size*i
        rbrac = lbound+step_size*(i+1)
+
        ! Verify that the root is bracketed
        IF (f(lbrac)*f(rbrac) < 0.d0) THEN
+
           root_present = .TRUE.
           root_number = root_number + 1
+
           ! Find the root within interval
           CALL hybridSA(lbrac, rbrac, root, tol, iters, max_iters, f)
+
           ! Print results
           IF (iters .GE. max_iters) THEN
              PRINT '(a)', "Maximum iterations reached."
@@ -259,7 +288,9 @@ CONTAINS
              PRINT '(a,i3,a,f11.8,a,i3,a)', 'Root', root_number, ' found at x =', root, &
                   ' in', iters,' iterations.'
           END IF
+
        END IF
+
     END DO
        
     IF (root_present .EQV. .FALSE.) GOTO 200
@@ -284,34 +315,38 @@ SUBROUTINE hybridSA(lbound, rbound, root, tolerance, iterations, max_iterations,
   ! to be between "lbound" and "rbound", and the result is returned in "root".
   ! If the next SA guess is within the known bounds, the step is accepted;
   ! otherwise, a bisection step is taken.
-  !
-  ! arguments and interfaces
-  REAL(8), INTENT(inout) :: lbound, rbound, root
-  real(8), intent(in) :: tolerance
-  integer, intent(out) :: iterations
-  integer, intent(in) :: max_iterations
-  interface
-     pure function f(x) result(answer)
-       real(8), intent(in) :: x
-       real(8) :: answer
-     end function f
-  end interface
 
+  IMPLICIT NONE
+  
+  ! arguments and interfaces
+  REAL(real32), INTENT(inout) :: lbound, rbound, root
+  REAL(real32), INTENT(in) :: tolerance
+  INTEGER, INTENT(out) :: iterations
+  INTEGER, INTENT(in) :: max_iterations
+  
+  INTERFACE
+     PURE FUNCTION f(x) RESULT(answer)
+       import
+       REAL(real32), INTENT(in) :: x
+       REAL(real32) :: answer
+     END FUNCTION f
+  END INTERFACE
+  
   ! locals
-  real(8) :: a, b, c, d, dx, error
-  real(8) :: x0, x1, x2, x3, f0, f1, f2, f3
-  character(len=8) :: type
+  REAL(real32) :: a, b, c, d, dx, error
+  REAL(real32) :: x0, x1, x2, x3, f0, f1, f2, f3
+  CHARACTER(len=8) :: TYPE
   
   ! Verify that the root is bracketed
   IF (f(lbound) * f(rbound) .GT. 0.d0) GOTO 100
-
+  
   ! Initialization
   x0 = lbound; x1 = rbound
   x2 = (x0 + x1) / 2.d0
   f0 = f(x0)
   f1 = f(x1)
   f2 = f(x2)
-
+  
   a = ((f0-f1) * (x2-x1) - (f2-f1) * (x0-x1)) &
        / ((x0-x2) * (x0-x1) * (x2-x1))
 
@@ -320,85 +355,85 @@ SUBROUTINE hybridSA(lbound, rbound, root, tolerance, iterations, max_iterations,
   
   c = f1
   
-  d = sqrt(b*b - 4.d0*a*c)
+  d = SQRT(b*b - 4.d0*a*c)
   
   ! Begin root finding
-  do iterations = 1, max_iterations
-
+  DO iterations = 1, max_iterations
+     
      ! Determine if Secant or Bisection step
-     if (b .ge. 0) then
-        if (((x0-x1)*(b+d)+2*c)*2*c .le. 0) then
+     IF (b .GE. 0) THEN
+        IF (((x0-x1)*(b+d)+2*c)*2*c .LE. 0) THEN
            ! OK to take a Secant step
            dx = -2.d0 * c / (b + d)
            x3 = x1 + dx
-           type = '(Secant)'
-        else
+           TYPE = '(Secant)'
+        ELSE
            ! take a bisection step instead
            dx = (x1 - x0) / 2.d0
            x3 = (x0 + x1) / 2.d0
-           type = '(Bisect)'
-        end if
-     else
-        if (((x0-x1)*(b-d)+2*c)*2*c .le. 0) then
+           TYPE = '(Bisect)'
+        END IF
+     ELSE
+        IF (((x0-x1)*(b-d)+2*c)*2*c .LE. 0) THEN
            ! OK to take a Secant step
            dx = -2.d0 * c / (b - d)
            x3 = x1 + dx
-           type = '(SA)'
-        else
+           TYPE = '(SA)'
+        ELSE
            ! take a bisection step instead
            dx = (x1 - x0) / 2.d0
            x3 = (x0 + x1) / 2.d0
-           type = '(BS)'
-        end if
-     end if
-        
+           TYPE = '(BS)'
+        END IF
+     END IF
+     
      ! Compare the relative error ti the Tolerance.
-     if (abs(dx/x3) .le. tolerance) then
+     IF (ABS(dx/x3) .LE. tolerance) THEN
         ! Error is BELOW tolerance, the root
         ! has been found, so exit loop.
-        exit
-     else
+        EXIT
+     ELSE
         ! The relative error is too big, loop again.
-        print '(a,i3,a10,a10,f12.8)', 'Iteration:', iterations, type, 'Root: ', x3
+        PRINT '(a,i3,a10,a10,f12.8)', 'Iteration:', iterations, TYPE, 'Root: ', x3
         f3 = f(x3)
-
+        
         ! Adjust brackets.
-        if (f0 * f2 .le. 0) then
+        IF (f0 * f2 .LE. 0) THEN
            ! The root is in left subinterval...
            x1 = x3
            f1 = f3
-        else
+        ELSE
            ! The root is in right subinterval
            x0 = x3
            f0 = f3
-        end if
-
+        END IF
+        
         ! Recalculate terms
         x2 = (x0 + x1) / 2.d0  
         f2 = f(x2)
         
         a = ((f0-f1) * (x2-x1) - (f2-f1) * (x0-x1)) &
              / ((x0-x2) * (x0-x1) * (x2-x1))
-
+        
         b = ((f2-f1) * (x0-x1)**2 - (f0-f1) * (x2-x1)**2) &
              / ((x0-x2) * (x0-x1) * (x2-x1))
-
+        
         c = f1
-  
-        d = sqrt(b*b - 4.d0*a*c)
-     end if
-  end do
+        
+        d = SQRT(b*b - 4.d0*a*c)
+     END IF
+  END DO
   ! Final extimate of root
   root = x3
-
+  
   ! normal exit
-    RETURN
-
-    ! error trap
+  RETURN
+  
+  ! error trap
 100 PRINT '(a)', "Root not bracketed."
-    return
-        
+  RETURN
+  
 END SUBROUTINE hybridSA
 
   
-end module roots
+END MODULE roots
